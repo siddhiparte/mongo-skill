@@ -1,0 +1,52 @@
+[
+  {
+    "name": "Siddhi",
+    "id": 1,
+    "skills": ["JavaScript", "React.js", "Node.js", "HTML", "CSS", "Tailwind"]
+  },
+  {
+    "name": "Aditya",
+    "id": 2,
+    "skills": ["JavaScript", "Web Development", "HTML", "CSS"]
+  },
+  {
+    "name": "Sanbedan",
+    "id": 3,
+    "skills": ["Python", "Data Science", "Machine Learning", "Flutter"]
+  },
+  {
+    "name": "Mehank",
+    "id": 4,
+    "skills": ["SQL", "java", ".net programming"]
+  },
+  {
+    "name": "Simran",
+    "id": 5,
+    "skills": ["Python", "Machine Learning", "Data Science", "Data Analysis"]
+  },
+  {
+    "name": "Ravi",
+    "id": 6,
+    "skills": ["JavaScript", "Angular", "TypeScript", "HTML"]
+  },
+  {
+    "name": "Nisha",
+    "id": 7,
+    "skills": ["Ruby", "Rails", "JavaScript", "CSS"]
+  },
+  {
+    "name": "Karan",
+    "id": 8,
+    "skills": ["Swift", "iOS Development", "Objective-C", "Xcode"]
+  },
+  {
+    "name": "Aditi",
+    "id": 9,
+    "skills": ["C#", "ASP.NET", "SQL", "Web Services"]
+  },
+  {
+    "name": "Vikram",
+    "id": 10,
+    "skills": ["PHP", "Laravel", "JavaScript", "MySQL"]
+  }
+]

@@ -1,101 +1,184 @@
-import Image from "next/image";
+"use client";
+import React, { useEffect, useState } from "react";
+
+// Define the User interface
+interface User {
+  id: number;
+  skills: string[];
+}
+
+// Define the structure for related skills
+interface RelatedSkill {
+  skill: string;
+  score: number;
+}
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedSkill, setSelectedSkill] = useState<string>("");
+  const [relatedSkills, setRelatedSkills] = useState<RelatedSkill[]>([]);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const response = await fetch("/api/users");
+        if (!response.ok) {
+          throw new Error("Network response was not ok");
+        }
+        const data: User[] = await response.json();
+        setUsers(data);
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (error) {
+        setError("Failed to load users");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUsers();
+  }, []);
+
+  // Function to normalize skill strings
+  const normalizeSkill = (skill: string): string => {
+    return skill.toLowerCase().replace(/\s+/g, "");
+  };
+
+  // Function to create a skill vector for the user with weights
+  const createSkillVector = (
+    userSkills: string[],
+    allSkills: string[]
+  ): number[] => {
+    const normalizedSkills = userSkills.map(normalizeSkill);
+    return allSkills.map((skill) => {
+      const skillNormalized = normalizeSkill(skill);
+      return normalizedSkills.includes(skillNormalized) ? 1 : 0;
+    });
+  };
+
+  // Create a skill matching dataset
+  const createSkillMatchingDataset = (users: User[]) => {
+    const allSkills = Array.from(
+      new Set(users.flatMap((user) => user.skills.map(normalizeSkill)))
+    );
+
+    const relatedSkills: { [key: string]: RelatedSkill[] } = {};
+
+    users.forEach((user) => {
+      const userVector = createSkillVector(user.skills, allSkills);
+
+      users.forEach((otherUser) => {
+        if (user.id !== otherUser.id) {
+          const otherUserVector = createSkillVector(
+            otherUser.skills,
+            allSkills
+          );
+          const dotProduct = userVector.reduce(
+            (sum, val, i) => sum + val * otherUserVector[i],
+            0
+          );
+          const magnitudeA = Math.sqrt(
+            userVector.reduce((sum, val) => sum + val * val, 0)
+          );
+          const magnitudeB = Math.sqrt(
+            otherUserVector.reduce((sum, val) => sum + val * val, 0)
+          );
+          const similarity =
+            magnitudeA && magnitudeB
+              ? dotProduct / (magnitudeA * magnitudeB)
+              : 0;
+
+          if (similarity > 0) {
+            user.skills.forEach((skill) => {
+              const normalizedSkill = normalizeSkill(skill);
+              if (!relatedSkills[normalizedSkill]) {
+                relatedSkills[normalizedSkill] = [];
+              }
+
+              otherUser.skills.forEach((otherSkill) => {
+                const normalizedOtherSkill = normalizeSkill(otherSkill);
+                if (normalizedOtherSkill !== normalizedSkill) {
+                  const existingRelated = relatedSkills[normalizedSkill].find(
+                    (rel) => rel.skill === normalizedOtherSkill
+                  );
+
+                  if (existingRelated) {
+                    existingRelated.score += similarity; // Accumulate score
+                  } else {
+                    relatedSkills[normalizedSkill].push({
+                      skill: normalizedOtherSkill,
+                      score: similarity, // Initial score
+                    });
+                  }
+                }
+              });
+            });
+          }
+        }
+      });
+    });
+
+    // Normalize scores to be between 0 and 1
+    const maxScore = Math.max(
+      ...Object.values(relatedSkills).flatMap((skill) =>
+        skill.map((rel) => rel.score)
+      )
+    );
+
+    if (maxScore > 0) {
+      Object.values(relatedSkills).forEach((skill) => {
+        skill.forEach((rel) => {
+          rel.score /= maxScore; // Normalize the score
+        });
+      });
+    }
+
+    return relatedSkills;
+  };
+
+  // Create skill matching dataset after users are loaded
+  const skillMatchingDataset =
+    users.length > 0 ? createSkillMatchingDataset(users) : {};
+
+  // Handle skill selection
+  const handleSkillChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const skill = event.target.value;
+    setSelectedSkill(skill);
+    setRelatedSkills(skillMatchingDataset[normalizeSkill(skill)] || []);
+  };
+
+  if (loading) return <div>Loading...</div>;
+  if (error) return <div>{error}</div>;
+
+  // Get all unique skills for the dropdown
+  const allSkills = Array.from(new Set(Object.keys(skillMatchingDataset)));
+
+  return (
+    <div>
+      <h1>Skill Matching Dataset</h1>
+      <label htmlFor="skills">Select a Skill:</label>
+      <select id="skills" value={selectedSkill} onChange={handleSkillChange}>
+        <option value="">-- Select a Skill --</option>
+        {allSkills.map((skill) => (
+          <option key={skill} value={skill}>
+            {skill}
+          </option>
+        ))}
+      </select>
+
+      {relatedSkills.length > 0 && (
+        <div>
+          <h2>Related Skills:</h2>
+          <ul>
+            {relatedSkills.map((relSkill) => (
+              <li key={relSkill.skill}>
+                {relSkill.skill} (Score: {relSkill.score.toFixed(2)})
+              </li>
+            ))}
+          </ul>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      )}
     </div>
   );
 }
