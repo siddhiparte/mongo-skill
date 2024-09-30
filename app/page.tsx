@@ -17,7 +17,6 @@ interface RelatedSkill {
 export default function Home() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
   const [selectedSkill, setSelectedSkill] = useState<string>("");
   const [relatedSkills, setRelatedSkills] = useState<RelatedSkill[]>([]);
   const [relatedSkillsLoading, setRelatedSkillsLoading] = useState<boolean>(false);
@@ -31,8 +30,8 @@ export default function Home() {
         }
         const data: User[] = await response.json();
         setUsers(data);
-      } catch (error) {
-        setError("Failed to load users");
+      } catch {
+        // Error handling removed
       } finally {
         setLoading(false);
       }
@@ -62,7 +61,7 @@ export default function Home() {
   };
 
   // Create a skill matching dataset
-  const createSkillMatchingDataset = (users: User[]) => {
+  const createSkillMatchingDataset = (users: User[]): { [key: string]: RelatedSkill[] } => {
     const allSkills = Array.from(
       new Set(users.flatMap((user) => user.skills.map((skill) => normalizeSkill(skill.value))))
     );
@@ -145,17 +144,16 @@ export default function Home() {
     users.length > 0 ? createSkillMatchingDataset(users) : {};
 
   // Handle skill selection
-  const handleSkillChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+  const handleSkillChange = (event: React.ChangeEvent<HTMLSelectElement>): void => {
     const skill = event.target.value;
     setSelectedSkill(skill);
     setRelatedSkillsLoading(true); // Start loading spinner
 
     // Simulate the delay of fetching related skills
     setTimeout(() => {
-      // Get the related skills, filter out those with score 0, sort by score, and select the top 5
+      // Get the related skills, sort by score, and select the top 5
       const related = skillMatchingDataset[normalizeSkill(skill)] || [];
-      const filteredRelated = related.filter((skill) => skill.score > 0); // Exclude skills with score 0.0
-      const top5RelatedSkills = filteredRelated
+      const top5RelatedSkills = related
         .sort((a, b) => b.score - a.score) // Sort in descending order of score
         .slice(0, 5); // Take the top 5 skills
       setRelatedSkills(top5RelatedSkills);
@@ -164,7 +162,6 @@ export default function Home() {
   };
 
   if (loading) return <div>Loading...</div>;
-  if (error) return <div>{error}</div>;
 
   // Get all unique skills for the dropdown and sort them alphabetically
   const uniqueSkills = new Map<string, string>();
@@ -196,20 +193,20 @@ export default function Home() {
 
       {relatedSkillsLoading ? (
         <div className="spinner">Loading related skills...</div>
-      ) : relatedSkills.length > 0 ? (
-        <div>
-          <h2>Top 5 Related Skills:</h2>
-          <ul>
-            {relatedSkills.map((relSkill) => (
-              <li key={relSkill.skill}>
-                {relSkill.skill} (Score: {relSkill.score.toFixed(2)})
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : selectedSkill ? (
-        <div>No related skills found.</div>
-      ) : null}
+      ) : (
+        relatedSkills.length > 0 && (
+          <div>
+            <h2>Top 5 Related Skills:</h2>
+            <ul>
+              {relatedSkills.map((relSkill) => (
+                <li key={relSkill.skill}>
+                  {relSkill.skill} (Score: {relSkill.score.toFixed(2)})
+                </li>
+              ))}
+            </ul>
+          </div>
+        )
+      )}
     </div>
   );
 }
