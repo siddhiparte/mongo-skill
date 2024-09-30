@@ -1,10 +1,11 @@
 "use client";
 import React, { useEffect, useState } from "react";
 
-// Define the User interface
+// Define the User interface based on the new JSON structure
 interface User {
-  id: number;
-  skills: string[];
+  _id: { $oid: string };
+  skills: { _id: { $oid: string }; value: string }[];
+  skillsCount: number;
 }
 
 // Define the structure for related skills
@@ -19,6 +20,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [selectedSkill, setSelectedSkill] = useState<string>("");
   const [relatedSkills, setRelatedSkills] = useState<RelatedSkill[]>([]);
+  const [relatedSkillsLoading, setRelatedSkillsLoading] = useState<boolean>(false);
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -29,7 +31,6 @@ export default function Home() {
         }
         const data: User[] = await response.json();
         setUsers(data);
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (error) {
         setError("Failed to load users");
       } finally {
@@ -40,9 +41,12 @@ export default function Home() {
     fetchUsers();
   }, []);
 
-  // Function to normalize skill strings
+  // Function to normalize skill strings, handling special characters at the start
   const normalizeSkill = (skill: string): string => {
-    return skill.toLowerCase().replace(/\s+/g, "");
+    return skill
+      .replace(/^[\s.,;'"@=+-]+/, "") // Remove leading special characters
+      .toLowerCase()
+      .replace(/\s+/g, ""); // Remove extra spaces and normalize
   };
 
   // Function to create a skill vector for the user with weights
@@ -60,20 +64,19 @@ export default function Home() {
   // Create a skill matching dataset
   const createSkillMatchingDataset = (users: User[]) => {
     const allSkills = Array.from(
-      new Set(users.flatMap((user) => user.skills.map(normalizeSkill)))
+      new Set(users.flatMap((user) => user.skills.map((skill) => normalizeSkill(skill.value))))
     );
 
     const relatedSkills: { [key: string]: RelatedSkill[] } = {};
 
     users.forEach((user) => {
-      const userVector = createSkillVector(user.skills, allSkills);
+      const userSkills = user.skills.map((skill) => skill.value);
+      const userVector = createSkillVector(userSkills, allSkills);
 
       users.forEach((otherUser) => {
-        if (user.id !== otherUser.id) {
-          const otherUserVector = createSkillVector(
-            otherUser.skills,
-            allSkills
-          );
+        if (user._id.$oid !== otherUser._id.$oid) {
+          const otherUserSkills = otherUser.skills.map((skill) => skill.value);
+          const otherUserVector = createSkillVector(otherUserSkills, allSkills);
           const dotProduct = userVector.reduce(
             (sum, val, i) => sum + val * otherUserVector[i],
             0
@@ -90,13 +93,13 @@ export default function Home() {
               : 0;
 
           if (similarity > 0) {
-            user.skills.forEach((skill) => {
+            userSkills.forEach((skill) => {
               const normalizedSkill = normalizeSkill(skill);
               if (!relatedSkills[normalizedSkill]) {
                 relatedSkills[normalizedSkill] = [];
               }
 
-              otherUser.skills.forEach((otherSkill) => {
+              otherUserSkills.forEach((otherSkill) => {
                 const normalizedOtherSkill = normalizeSkill(otherSkill);
                 if (normalizedOtherSkill !== normalizedSkill) {
                   const existingRelated = relatedSkills[normalizedSkill].find(
@@ -104,11 +107,11 @@ export default function Home() {
                   );
 
                   if (existingRelated) {
-                    existingRelated.score += similarity; // Accumulate score
+                    existingRelated.score += similarity;
                   } else {
                     relatedSkills[normalizedSkill].push({
                       skill: normalizedOtherSkill,
-                      score: similarity, // Initial score
+                      score: similarity,
                     });
                   }
                 }
@@ -129,7 +132,7 @@ export default function Home() {
     if (maxScore > 0) {
       Object.values(relatedSkills).forEach((skill) => {
         skill.forEach((rel) => {
-          rel.score /= maxScore; // Normalize the score
+          rel.score /= maxScore;
         });
       });
     }
@@ -145,14 +148,38 @@ export default function Home() {
   const handleSkillChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const skill = event.target.value;
     setSelectedSkill(skill);
-    setRelatedSkills(skillMatchingDataset[normalizeSkill(skill)] || []);
+    setRelatedSkillsLoading(true); // Start loading spinner
+
+    // Simulate the delay of fetching related skills
+    setTimeout(() => {
+      // Get the related skills, filter out those with score 0, sort by score, and select the top 5
+      const related = skillMatchingDataset[normalizeSkill(skill)] || [];
+      const filteredRelated = related.filter((skill) => skill.score > 0); // Exclude skills with score 0.0
+      const top5RelatedSkills = filteredRelated
+        .sort((a, b) => b.score - a.score) // Sort in descending order of score
+        .slice(0, 5); // Take the top 5 skills
+      setRelatedSkills(top5RelatedSkills);
+      setRelatedSkillsLoading(false); // Stop loading spinner
+    }, 500); // Adjust the timeout as needed
   };
 
   if (loading) return <div>Loading...</div>;
   if (error) return <div>{error}</div>;
 
-  // Get all unique skills for the dropdown
-  const allSkills = Array.from(new Set(Object.keys(skillMatchingDataset)));
+  // Get all unique skills for the dropdown and sort them alphabetically
+  const uniqueSkills = new Map<string, string>();
+  users.forEach((user) => {
+    user.skills.forEach((skill) => {
+      const normalizedSkill = normalizeSkill(skill.value);
+      if (!uniqueSkills.has(normalizedSkill)) {
+        uniqueSkills.set(normalizedSkill, skill.value);
+      }
+    });
+  });
+
+  const sortedSkills = Array.from(uniqueSkills.values()).sort((a, b) =>
+    normalizeSkill(a).localeCompare(normalizeSkill(b))
+  );
 
   return (
     <div>
@@ -160,16 +187,18 @@ export default function Home() {
       <label htmlFor="skills">Select a Skill:</label>
       <select id="skills" value={selectedSkill} onChange={handleSkillChange}>
         <option value="">-- Select a Skill --</option>
-        {allSkills.map((skill) => (
+        {sortedSkills.map((skill) => (
           <option key={skill} value={skill}>
             {skill}
           </option>
         ))}
       </select>
 
-      {relatedSkills.length > 0 && (
+      {relatedSkillsLoading ? (
+        <div className="spinner">Loading related skills...</div>
+      ) : relatedSkills.length > 0 ? (
         <div>
-          <h2>Related Skills:</h2>
+          <h2>Top 5 Related Skills:</h2>
           <ul>
             {relatedSkills.map((relSkill) => (
               <li key={relSkill.skill}>
@@ -178,7 +207,9 @@ export default function Home() {
             ))}
           </ul>
         </div>
-      )}
+      ) : selectedSkill ? (
+        <div>No related skills found.</div>
+      ) : null}
     </div>
   );
 }
