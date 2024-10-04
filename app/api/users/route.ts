@@ -1,16 +1,20 @@
+// app/api/users/route.ts
 import { NextResponse } from "next/server";
-import fs from "fs";
-import path from "path";
+import clientPromise from "@/app/mongodb";
 
-// Function to load user data from users.json
-const loadUsersData = (): { name: string; id: number; skills: string[] }[] => {
-  const filePath = path.join(process.cwd(), "data", "users.json");
-  const data = fs.readFileSync(filePath, "utf8");
-  return JSON.parse(data);
-};
-
-// Handle GET requests to fetch users
 export async function GET() {
-  const users = loadUsersData();
-  return NextResponse.json(users);
+  try {
+    const client = await clientPromise;
+    const db = client.db("users");
+    
+    const users = await db.collection("skillset").find({}).toArray();
+    
+    return NextResponse.json(users);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  } catch (error) {
+    return NextResponse.json(
+      { error: "Failed to fetch users" },
+      { status: 500 }
+    );
+  }
 }
