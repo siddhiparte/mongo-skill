@@ -12,9 +12,9 @@
     "debounce": "^2.1.1",
     "dotenv": "^16.4.5",
     "mongod": "^2.0.0",
-    "mongodb": "^6.9.0",
+    "mongodb": "^6.10.0",
     "next": "14.2.13",
-    "react": "^18",
+    "react": "^18.3.1",
     "react-dom": "^18",
     "use-debounce": "^10.0.3"
   },
