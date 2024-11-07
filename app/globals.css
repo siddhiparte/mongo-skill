@@ -1,30 +1,86 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-:root {
-  --background: #ffffff;
-  --foreground: #130101;
+/* General Styles */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1rem;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #ffffff;
-    --foreground: #000000;
+/* Style for the search bar */
+input[type="text"] {
+  padding: 0.5rem;
+  width: 100%;
+  border-radius: 0.25rem;
+  border: 1px solid #ddd;
+  margin-bottom: 1rem;
+}
+
+/* Grid Layout for Skill Selection */
+.grid {
+  display: grid;
+  gap: 1rem;
+}
+
+@media (min-width: 768px) {
+  .grid-cols-2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .grid-cols-3 {
+    grid-template-columns: repeat(3, 1fr);
   }
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
-}
+@media (max-width: 768px) {
+  /* Skill Selection */
+  .grid-cols-2 {
+    grid-template-columns: repeat(1, 1fr); /* Stacking on mobile */
+  }
+  .grid-cols-3 {
+    grid-template-columns: repeat(2, 1fr); /* 2-column grid on mobile */
+  }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
+  /* Buttons */
+  .button-container {
+    flex-direction: column; /* Stack buttons vertically on mobile */
+    gap: 1rem;
   }
 }
-pre {
-  user-select: text;
+
+/* Styling for Button Container */
+.fixed {
+  position: fixed;
+  bottom: 1rem;
+  left: 1rem;
+  right: 1rem;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem;
+  background-color: white;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+/* Button Styles */
+button {
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+button:disabled {
+  background-color: #b0b0b0;
+  cursor: not-allowed;
+}
+
+/* Custom Styling for Skill Checkboxes */
+input[type="checkbox"] {
+  margin-right: 0.5rem;
+}
+
+label {
+  cursor: pointer;
+  display: inline-block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }

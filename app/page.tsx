@@ -163,7 +163,6 @@
 //     </div>
 //   );
 // }
-
 "use client";
 import React, { useEffect, useState } from "react";
 
@@ -177,16 +176,16 @@ interface RelatedSkill {
   skill: string;
   score: number;
 }
+
 export default function Home() {
   const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState(true);
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [relatedSkills, setRelatedSkills] = useState<RelatedSkill[]>([]);
-  const [relatedSkillsLoading, setRelatedSkillsLoading] = useState<boolean>(false);
+  const [relatedSkillsLoading, setRelatedSkillsLoading] = useState(false);
   const [skillMatchingDataset, setSkillMatchingDataset] = useState<{ [key: string]: RelatedSkill[] }>({});
-  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState("");
 
-  // Function to normalize skill strings
   const normalizeSkill = (skill: string): string => {
     return skill
       .replace(/^[\s.,;'"@=+-]+/, "")
@@ -197,9 +196,7 @@ export default function Home() {
 
   const createSkillMatchingDataset = (users: User[]) => {
     const allSkills = Array.from(
-      new Set(
-        users.flatMap((user) => user.skills.map((skill) => skill.value))
-      )
+      new Set(users.flatMap((user) => user.skills.map((skill) => skill.value)))
     );
 
     const relatedSkills: { [key: string]: RelatedSkill[] } = {};
@@ -207,7 +204,7 @@ export default function Home() {
     allSkills.forEach((targetSkill) => {
       const normalizedTargetSkill = normalizeSkill(targetSkill);
       relatedSkills[normalizedTargetSkill] = [];
-      
+
       const usersWithSkill = users.filter((user) =>
         user.skills.some((skill) => normalizeSkill(skill.value) === normalizedTargetSkill)
       );
@@ -226,8 +223,8 @@ export default function Home() {
       Object.entries(coOccurrenceMap).forEach(([skill, count]) => {
         const score = count / usersWithSkill.length;
         relatedSkills[normalizedTargetSkill].push({
-          skill: allSkills.find(s => normalizeSkill(s) === skill) || skill,
-          score
+          skill: allSkills.find((s) => normalizeSkill(s) === skill) || skill,
+          score,
         });
       });
 
@@ -241,14 +238,10 @@ export default function Home() {
     const fetchUsers = async () => {
       try {
         const response = await fetch("/api/users");
-        if (!response.ok) {
-          throw new Error("Network response was not ok");
-        }
+        if (!response.ok) throw new Error("Network response was not ok");
         const data: User[] = await response.json();
         setUsers(data);
-        
-        const dataset = createSkillMatchingDataset(data);
-        setSkillMatchingDataset(dataset);
+        setSkillMatchingDataset(createSkillMatchingDataset(data));
       } catch (error) {
         console.error("Error fetching users:", error);
       } finally {
@@ -260,24 +253,20 @@ export default function Home() {
   }, []);
 
   const handleSkillToggle = (skill: string) => {
-    setSelectedSkills((prev) => {
-      if (prev.includes(skill)) {
-        return prev.filter((s) => s !== skill);
-      } else {
-        return [...prev, skill];
-      }
-    });
+    setSelectedSkills((prev) =>
+      prev.includes(skill) ? prev.filter((s) => s !== skill) : [...prev, skill]
+    );
   };
 
   const getRecommendations = () => {
     setRelatedSkillsLoading(true);
-
+  
     const relatedSkillMap: { [key: string]: number } = {};
-
+  
     selectedSkills.forEach(skill => {
       const normalizedSkill = normalizeSkill(skill);
       const related = skillMatchingDataset[normalizedSkill] || [];
-
+  
       related.forEach(relSkill => {
         const normalizedRelSkill = normalizeSkill(relSkill.skill);
         if (!selectedSkills.includes(normalizedRelSkill)) {
@@ -289,7 +278,8 @@ export default function Home() {
         }
       });
     });
-
+  
+    // Convert to an array of related skills, and exclude selected skills using a for loop
     const sortedRelatedSkills: RelatedSkill[] = [];
     for (const [skill, score] of Object.entries(relatedSkillMap)) {
       let isSelected = false;
@@ -303,12 +293,13 @@ export default function Home() {
         sortedRelatedSkills.push({ skill, score });
       }
     }
-
+  
+    // Sort by score in descending order and limit to top 5
     sortedRelatedSkills.sort((a, b) => b.score - a.score);
     setRelatedSkills(sortedRelatedSkills.slice(0, 5));
     setRelatedSkillsLoading(false);
   };
-
+  
   const clearSelectedSkills = () => {
     setSelectedSkills([]);
   };
@@ -319,16 +310,14 @@ export default function Home() {
     new Set(users.flatMap((user) => user.skills.map((skill) => skill.value)))
   ).sort((a, b) => a.localeCompare(b));
 
-  const filteredSkills = uniqueSkills.filter(skill =>
+  const filteredSkills = uniqueSkills.filter((skill) =>
     skill.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Skill Matching Dataset</h1>
-
-      <div className="mb-4">
-        <h2 className="text-lg font-semibold mb-2">Search Skills:</h2>
+    <div className="container mx-auto p-4 md:p-8">
+      {/* Search and Skill Selection */}
+      <div className="mb-4 md:mb-8">
         <input
           type="text"
           placeholder="Search for skills..."
@@ -338,58 +327,65 @@ export default function Home() {
         />
       </div>
 
-      <div className="mb-4" style={{ maxHeight: "50vh", overflowY: "auto" }}>
-        <h2 className="text-lg font-semibold mb-2">Select Skills:</h2>
-        <div className="space-y-2">
-          {filteredSkills.map((skill) => (
-            <div key={skill} className="flex items-center">
-              <input
-                type="checkbox"
-                id={skill}
-                checked={selectedSkills.includes(skill)}
-                onChange={() => handleSkillToggle(skill)}
-                className="mr-2"
-              />
-              <label htmlFor={skill} className="cursor-pointer">
-                {skill}
-              </label>
-            </div>
-          ))}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8">
+        {/* Skill Selection */}
+        <div className="mb-4 md:mb-0" style={{ maxHeight: "50vh", overflowY: "auto" }}>
+          <h2 className="text-lg font-semibold mb-2 md:mb-4">Select Skills:</h2>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4">
+            {filteredSkills.map((skill) => (
+              <div key={skill} className="flex items-center">
+                <input
+                  type="checkbox"
+                  id={skill}
+                  checked={selectedSkills.includes(skill)}
+                  onChange={() => handleSkillToggle(skill)}
+                  className="mr-2"
+                />
+                <label htmlFor={skill} className="cursor-pointer truncate">
+                  {skill}
+                </label>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Recommendations */}
+        <div>
+          {relatedSkillsLoading ? (
+            <div className="mt-4">Loading related skills...</div>
+          ) : (
+            relatedSkills.length > 0 && (
+              <div className="mt-4">
+                <h2 className="text-lg font-semibold mb-2">Recommended Skills:</h2>
+                <ul className="list-disc pl-5">
+                  {relatedSkills.map((relSkill) => (
+                    <li key={relSkill.skill}>
+                      {relSkill.skill} (Score: {relSkill.score.toFixed(2)})
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )
+          )}
         </div>
       </div>
 
-      <button
-        onClick={getRecommendations}
-        disabled={selectedSkills.length === 0}
-        className="bg-blue-500 text-white py-2 px-4 rounded disabled:bg-gray-400 fixed bottom-8 left-4"
-      >
-        Get Recommendations
-      </button>
-
-      <button
-        onClick={clearSelectedSkills}
-        className="bg-gray-500 text-white py-2 px-4 rounded fixed bottom-8 right-32"
-      >
-        Refresh Selected Skills
-      </button>
-
-      {relatedSkillsLoading ? (
-        <div className="mt-4">Loading related skills...</div>
-      ) : (
-        relatedSkills.length > 0 && (
-          <div className="mt-4">
-            <h3 className="text-xl font-semibold mb-2">Top 5 Related Skills:</h3>
-            <ul className="list-disc pl-5">
-              {relatedSkills.map((relSkill) => (
-                <li key={relSkill.skill} className="mb-1">
-                  {relSkill.skill} (Score: {relSkill.score.toFixed(2)})
-                </li>
-              ))}
-            </ul>
-          </div>
-        )
-      )}
+      {/* Buttons */}
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white shadow-lg flex gap-4 justify-between flex-col md:flex-row">
+        <button
+          onClick={clearSelectedSkills}
+          className="bg-blue-500 text-white rounded px-6 py-3"
+          disabled={selectedSkills.length === 0}
+        >
+          Clear Selected Skills
+        </button>
+        <button
+          onClick={getRecommendations}
+          className="bg-gray-300 text-gray-700 rounded px-6 py-3"
+        >
+          Get Recommendations
+        </button>
+      </div>
     </div>
   );
 }
-
