@@ -177,15 +177,14 @@ interface RelatedSkill {
   skill: string;
   score: number;
 }
-
 export default function Home() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [selectedSkills, setSelectedSkills] = useState<string[]>([]); // Array to hold selected skills
+  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [relatedSkills, setRelatedSkills] = useState<RelatedSkill[]>([]);
   const [relatedSkillsLoading, setRelatedSkillsLoading] = useState<boolean>(false);
   const [skillMatchingDataset, setSkillMatchingDataset] = useState<{ [key: string]: RelatedSkill[] }>({});
-  const [searchQuery, setSearchQuery] = useState<string>(''); // State for search query
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   // Function to normalize skill strings
   const normalizeSkill = (skill: string): string => {
@@ -196,7 +195,6 @@ export default function Home() {
       .replace(/\s+/g, " ");
   };
 
-  // Create skill matching dataset
   const createSkillMatchingDataset = (users: User[]) => {
     const allSkills = Array.from(
       new Set(
@@ -226,7 +224,7 @@ export default function Home() {
       });
 
       Object.entries(coOccurrenceMap).forEach(([skill, count]) => {
-        const score = count / usersWithSkill.length; // Normalize by number of users with target skill
+        const score = count / usersWithSkill.length;
         relatedSkills[normalizedTargetSkill].push({
           skill: allSkills.find(s => normalizeSkill(s) === skill) || skill,
           score
@@ -271,16 +269,15 @@ export default function Home() {
     });
   };
 
-  // Updated getRecommendations function to exclude selected skills from recommendations
   const getRecommendations = () => {
     setRelatedSkillsLoading(true);
-  
+
     const relatedSkillMap: { [key: string]: number } = {};
-  
+
     selectedSkills.forEach(skill => {
       const normalizedSkill = normalizeSkill(skill);
       const related = skillMatchingDataset[normalizedSkill] || [];
-  
+
       related.forEach(relSkill => {
         const normalizedRelSkill = normalizeSkill(relSkill.skill);
         if (!selectedSkills.includes(normalizedRelSkill)) {
@@ -292,16 +289,28 @@ export default function Home() {
         }
       });
     });
-  
-    // Convert to array, sort by score, and filter out selected skills
-    const sortedRelatedSkills = Object.entries(relatedSkillMap)
-      .map(([skill, score]) => ({ skill, score }))
-      .sort((a, b) => b.score - a.score)
-      .filter(({ skill }) => !selectedSkills.includes(skill))
-      .slice(0, 5);
-  
-    setRelatedSkills(sortedRelatedSkills);
+
+    const sortedRelatedSkills: RelatedSkill[] = [];
+    for (const [skill, score] of Object.entries(relatedSkillMap)) {
+      let isSelected = false;
+      for (let i = 0; i < selectedSkills.length; i++) {
+        if (normalizeSkill(selectedSkills[i]) === skill) {
+          isSelected = true;
+          break;
+        }
+      }
+      if (!isSelected) {
+        sortedRelatedSkills.push({ skill, score });
+      }
+    }
+
+    sortedRelatedSkills.sort((a, b) => b.score - a.score);
+    setRelatedSkills(sortedRelatedSkills.slice(0, 5));
     setRelatedSkillsLoading(false);
+  };
+
+  const clearSelectedSkills = () => {
+    setSelectedSkills([]);
   };
 
   if (loading) return <div>Loading...</div>;
@@ -352,9 +361,16 @@ export default function Home() {
       <button
         onClick={getRecommendations}
         disabled={selectedSkills.length === 0}
-        className="bg-blue-500 text-white py-2 px-4 rounded disabled:bg-gray-400 fixed bottom-8 right-4"
+        className="bg-blue-500 text-white py-2 px-4 rounded disabled:bg-gray-400 fixed bottom-8 left-4"
       >
         Get Recommendations
+      </button>
+
+      <button
+        onClick={clearSelectedSkills}
+        className="bg-gray-500 text-white py-2 px-4 rounded fixed bottom-8 right-32"
+      >
+        Refresh Selected Skills
       </button>
 
       {relatedSkillsLoading ? (
@@ -376,3 +392,4 @@ export default function Home() {
     </div>
   );
 }
+
